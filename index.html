@@ -1,0 +1,43 @@
+<h1>wwan-helper</h1>
+<h2>Getting Started</h2>
+<p>
+  Download wwan-helper:
+</p>
+<pre>git clone https://github.com/vog/wwan-helper.git /etc/wwan-helper</pre>
+<p>
+  Configure your APN and PIN in <code>/etc/wwan-helper/config</code>:
+</p>
+<pre>APN=web.vodafone.de
+PIN=1234</pre>
+<p>
+  Protect your configuration file:
+</p>
+<pre>chmod 600 /etc/wwan-helper/config</pre>
+<p>
+  Enable wwan-helper:
+</p>
+<pre>ln -s ../../wwan-helper/wwan-helper /etc/network/if-pre-up.d/wwan-helper
+ln -s ../../wwan-helper/wwan-helper /etc/network/if-post-down.d/wwan-helper</pre>
+<h2>Disable</h2>
+<p>
+  If you have any trouble, you can disable <em>wwan-helper</em>:
+</p>
+<pre>rm /etc/network/*/wwan-helper</pre>
+<h2>Further Information</h2>
+<p>
+  For debugging,
+  you can execute the
+  <em>pre-up</em> and <em>post-down</em> phases
+  directly via:
+</p>
+<pre>IFACE=wwan0 PHASE=pre-up /etc/wwan-helper/wwan-helper
+IFACE=wwan0 PHASE=post-down /etc/wwan-helper/wwan-helper</pre>
+<p>
+  For background information,
+  please have a look at:
+</p>
+<ul>
+<li><a href="http://www.thinkwiki.org/wiki/Ericsson_F3507g_Mobile_Broadband_Module">Linux Thinkpad Wiki &ndash; Ericsson F3507g Mobile Broadband Module</a>
+<li><a href="http://itsme.home.xs4all.nl/projects/phones/thuraya-hcs-7100-at-commands.html">AT command reference</a>
+<li><a href="http://www.natisbad.org/E4300/Dell_Wireless_5530_AT_cmd_ref.html">F3705g &ndash; AT commands reference</a>
+</ul>

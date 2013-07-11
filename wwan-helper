@@ -1,0 +1,67 @@
+#!/bin/sh
+set -eu
+
+# Note: This script enforces UMTS!
+# Replace 'AT+CFUN=6' with 'AT+CFUN=1' if you also want to allow for GSM.
+
+# Check interface
+case "$IFACE" in
+    wwan0|usb0)
+        # Okay, go ahead
+        ;;
+    *)
+        # Other network device, nothing to do
+        exit 0
+        ;;
+esac
+
+# Check device
+if ! lsusb | grep -q 'ID 0bdb:1911 Ericsson Business Mobile Networks BV'; then
+    echo 'wwan-helper: Unsupported WWAN device'
+    exit 1
+fi
+
+# Settings
+SERIAL_DEV=/dev/ttyACM1
+RETRY_TIMEOUT=3
+. /etc/wwan-helper/config
+
+# Check phase
+case "$PHASE" in
+    pre-up)
+        while true; do
+            echo 'wwan-helper: Starting modem'
+            ip link set "$IFACE" down || echo "wwan-helper: Error on 'ip link set "$IFACE" down' (ignored)"
+            chat -v -T "$APN" -U "$PIN" \
+                TIMEOUT 2 \
+                '*EMRDY: 1' \
+                'AT+CPIN?' '+CPIN: READY-AT+CPIN="\U"-' \
+                '\c' 'OK' \
+                'AT+CFUN=6' 'OK' \
+                'AT+CGDCONT=1,"IP","\T"' 'OK' \
+                'AT*ENAP?' '*ENAP:1,""-AT*ENAP=1,1-' \
+                '\c' 'OK' \
+                < "$SERIAL_DEV" > "$SERIAL_DEV" || echo "wwan-helper: Error on 'chat' with $SERIAL_DEV (ignored)"
+            ip link set "$IFACE" up || echo "wwan-helper: Error on 'ip link set "$IFACE" up' (ignored)"
+            sleep "$RETRY_TIMEOUT"
+            if dmesg | grep "cdc_ncm: $IFACE: network" | tail -1 | grep ' connected$'; then
+                break
+            fi
+            echo 'wwan-helper: Failed - Retrying'
+        done
+        ;;
+    post-down)
+        echo 'wwan-helper: Shutting down modem'
+        chat -v \
+            TIMEOUT 2 \
+            '*EMRDY: 1' \
+            'AT*ENAP?' '*ENAP:0,""-AT*ENAP=0-' \
+            '\c' 'OK' \
+            'AT+CFUN=4' 'OK' \
+            < "$SERIAL_DEV" > "$SERIAL_DEV"
+        ;;
+    *)
+        # Other phase, nothing to do
+        exit 0
+        ;;
+esac
