@@ -63,6 +63,39 @@
   </head>
   <body>
     <h1>wwan-helper</h1>
+    <p>
+      This little script helps me
+      to establish reliably a UMTS connection
+      on my
+      <em>ThinkPad T420s</em>
+      which contains a
+      <em>Ericsson F3507g Mobile Broadband Module</em>.
+      If that hardware fails to get a WWAN connection,
+      the modem often needs a complete reset
+      and reinitialization.
+      Also,
+      the network device
+      needs some reset during that phase.
+      This script takes care of that hassle.
+      It retries as often as necessary
+      until the UMTS connection is really established.
+    </p>
+    <p>
+      The wwan-helper is meant to run as hook script
+      for the <em>ifup&nbsp;/&nbsp;ifdown</em> mechanism,
+      but should also work on other networking systems.
+    </p>
+    <p>
+      If that script is also helpful for you,
+      some small donation would be nice:
+    </p>
+    <ul>
+      <li>Bitcoin: <a href="bitcoin:1L2R8jxPpbuZRyAth4sqSuXNpeks3ow6RH">1L2R8jxPpbuZRyAth4sqSuXNpeks3ow6RH</a>
+    </ul>
+    <p>
+      Have fun!<br>
+      <a href="http://www.profv.de/">Volker</a>
+    </p>
     <h2>Getting Started</h2>
     <p>
       Download wwan-helper:
@@ -82,9 +115,19 @@ PIN=1234</pre>
     </p>
     <pre>ln -s ../../wwan-helper/wwan-helper /etc/network/if-pre-up.d/wwan-helper
 ln -s ../../wwan-helper/wwan-helper /etc/network/if-post-down.d/wwan-helper</pre>
-    <h2>Disable</h2>
     <p>
-      If you have any trouble, you can disable <em>wwan-helper</em>:
+      Note that this doesn't require any special settings in your
+      <code>/etc/network/interfaces</code>.
+      The following standard entry is all you need:
+    </p>
+    <pre>iface wwan0 inet dhcp</pre>
+    <p>
+      If you have a Linux kernel 3.2 or older,
+      use <code>usb0</code> instead of <code>wwan0</code>.
+    </p>
+    <h2>Disabling wwan-helper</h2>
+    <p>
+      If you have any trouble, you can disable <em>wwan-helper</em> simply via:
     </p>
     <pre>rm /etc/network/*/wwan-helper</pre>
     <h2>Further Information</h2>
