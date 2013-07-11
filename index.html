@@ -1,43 +1,113 @@
-<h1>wwan-helper</h1>
-<h2>Getting Started</h2>
-<p>
-  Download wwan-helper:
-</p>
-<pre>git clone https://github.com/vog/wwan-helper.git /etc/wwan-helper</pre>
-<p>
-  Configure your APN and PIN in <code>/etc/wwan-helper/config</code>:
-</p>
-<pre>APN=web.vodafone.de
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>wwan-helper</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        font-size: 11pt;
+        width: 550pt;
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 40pt;
+      }
+      h1 {
+        text-align: center;
+        font-size: 18pt;
+        background-color: #d76;
+        padding-top: 6pt;
+        padding-bottom: 6pt;
+        margin-top: 30pt;
+        margin-bottom: 15pt;
+        line-height: 1.5;
+      }
+      h2 {
+        padding-left: 10pt;
+        padding-top: 2pt;
+        padding-bottom: 2pt;
+        margin-top: 20pt;
+        margin-bottom: 15pt;
+        text-align: left;
+        font-size: 16pt;
+        background-color: #db7;
+      }
+      p {
+        text-align: justify;
+      }
+      pre, code {
+        border: 1px dotted #44f;
+      }
+      pre {
+        padding-left: 4pt;
+        padding-right: 4pt;
+        padding-top: 2pt;
+        padding-bottom: 2pt;
+      }
+      code {
+        padding-left: 2pt;
+        padding-right: 2pt;
+        padding-top: 0pt;
+        padding-bottom: 0pt;
+      }
+      a {
+        text-decoration: none;
+      }
+      .ribbon {
+        position: absolute;
+        top: 0;
+        right: 0;
+        border: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>wwan-helper</h1>
+    <h2>Getting Started</h2>
+    <p>
+      Download wwan-helper:
+    </p>
+    <pre>git clone https://github.com/vog/wwan-helper.git /etc/wwan-helper</pre>
+    <p>
+      Configure your APN and PIN in <code>/etc/wwan-helper/config</code>:
+    </p>
+    <pre>APN=web.vodafone.de
 PIN=1234</pre>
-<p>
-  Protect your configuration file:
-</p>
-<pre>chmod 600 /etc/wwan-helper/config</pre>
-<p>
-  Enable wwan-helper:
-</p>
-<pre>ln -s ../../wwan-helper/wwan-helper /etc/network/if-pre-up.d/wwan-helper
+    <p>
+      Protect your configuration file:
+    </p>
+    <pre>chmod 600 /etc/wwan-helper/config</pre>
+    <p>
+      Enable wwan-helper:
+    </p>
+    <pre>ln -s ../../wwan-helper/wwan-helper /etc/network/if-pre-up.d/wwan-helper
 ln -s ../../wwan-helper/wwan-helper /etc/network/if-post-down.d/wwan-helper</pre>
-<h2>Disable</h2>
-<p>
-  If you have any trouble, you can disable <em>wwan-helper</em>:
-</p>
-<pre>rm /etc/network/*/wwan-helper</pre>
-<h2>Further Information</h2>
-<p>
-  For debugging,
-  you can execute the
-  <em>pre-up</em> and <em>post-down</em> phases
-  directly via:
-</p>
-<pre>IFACE=wwan0 PHASE=pre-up /etc/wwan-helper/wwan-helper
+    <h2>Disable</h2>
+    <p>
+      If you have any trouble, you can disable <em>wwan-helper</em>:
+    </p>
+    <pre>rm /etc/network/*/wwan-helper</pre>
+    <h2>Further Information</h2>
+    <p>
+      For debugging,
+      you can execute the
+      <em>pre-up</em> and <em>post-down</em> phases
+      directly via:
+    </p>
+    <pre>IFACE=wwan0 PHASE=pre-up /etc/wwan-helper/wwan-helper
 IFACE=wwan0 PHASE=post-down /etc/wwan-helper/wwan-helper</pre>
-<p>
-  For background information,
-  please have a look at:
-</p>
-<ul>
-<li><a href="http://www.thinkwiki.org/wiki/Ericsson_F3507g_Mobile_Broadband_Module">Linux Thinkpad Wiki &ndash; Ericsson F3507g Mobile Broadband Module</a>
-<li><a href="http://itsme.home.xs4all.nl/projects/phones/thuraya-hcs-7100-at-commands.html">AT command reference</a>
-<li><a href="http://www.natisbad.org/E4300/Dell_Wireless_5530_AT_cmd_ref.html">F3705g &ndash; AT commands reference</a>
-</ul>
+    <p>
+      For background information,
+      please have a look at:
+    </p>
+    <ul>
+    <li><a href="http://www.thinkwiki.org/wiki/Ericsson_F3507g_Mobile_Broadband_Module">Linux Thinkpad Wiki &ndash; Ericsson F3507g Mobile Broadband Module</a>
+    <li><a href="http://itsme.home.xs4all.nl/projects/phones/thuraya-hcs-7100-at-commands.html">AT command reference</a>
+    <li><a href="http://www.natisbad.org/E4300/Dell_Wireless_5530_AT_cmd_ref.html">F3705g &ndash; AT commands reference</a>
+    </ul>
+    <a href="https://github.com/vog/wwan-helper" target="_blank">
+      <!-- https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png -->
+      <img class="ribbon" src="index-forkme.png" alt="Fork me on GitHub">
+    </a>
+  </body>
+</html>
