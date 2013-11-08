@@ -45,6 +45,7 @@ case "$PHASE" in
     pre-up)
         while true; do
             echo 'wwan-helper: Starting modem'
+            modprobe cdc_acm
             ip link set "$IFACE" down || echo "wwan-helper: Error on 'ip link set "$IFACE" down' (ignored)"
             chat -v -T "$APN" -U "$PIN" \
                 TIMEOUT 2 \
@@ -62,6 +63,7 @@ case "$PHASE" in
                 break
             fi
             echo 'wwan-helper: Failed - Retrying'
+            rmmod cdc_acm
         done
         ;;
     post-down)
