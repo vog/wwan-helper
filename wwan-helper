@@ -59,7 +59,7 @@ case "$PHASE" in
                 < "$SERIAL_DEV" > "$SERIAL_DEV" || echo "wwan-helper: Error on 'chat' with $SERIAL_DEV (ignored)"
             ip link set "$IFACE" up || echo "wwan-helper: Error on 'ip link set "$IFACE" up' (ignored)"
             sleep "$RETRY_TIMEOUT"
-            if dmesg | grep "cdc_ncm: $IFACE: network" | tail -1 | grep ' connected$'; then
+            if dmesg | grep "cdc_ncm[: ].* $IFACE: network" | tail -1 | grep ' connected$'; then
                 break
             fi
             echo 'wwan-helper: Failed - Retrying'
