@@ -15,9 +15,6 @@ set -eu
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# Note: This script enforces UMTS!
-# Replace 'AT+CFUN=6' with 'AT+CFUN=1' if you also want to allow for GSM.
-
 # Check interface
 case "$IFACE" in
     wwan0|usb0)
@@ -40,6 +37,18 @@ SERIAL_DEV=/dev/ttyACM1
 RETRY_TIMEOUT=3
 . /etc/wwan-helper/config
 
+# Check ENFORCE_UMTS
+if [ "$ENFORCE_UMTS" = "no" ]; then
+    echo 'wwan-helper: Not enforcing UMTS, allowing for GSM'
+    AT_CFUN_START=1
+elif [ "$ENFORCE_UMTS" = "yes" ]; then
+    echo 'wwan-helper: Enforcing UMTS, not allowing for GSM'
+    AT_CFUN_START=6
+else
+    echo 'wwan-helper: Invalid config value for ENFORCE_UMTS'
+    exit 1
+fi
+
 # Check phase
 case "$PHASE" in
     pre-up)
@@ -52,7 +61,7 @@ case "$PHASE" in
                 '*EMRDY: 1' \
                 'AT+CPIN?' '+CPIN: READY-AT+CPIN="\U"-' \
                 '\c' 'OK' \
-                'AT+CFUN=6' 'OK' \
+                'AT+CFUN='"$AT_CFUN_START" 'OK' \
                 'AT+CGDCONT=1,"IP","\T"' 'OK' \
                 'AT*ENAP?' '*ENAP:1,""-AT*ENAP=1,1-' \
                 '\c' 'OK' \
