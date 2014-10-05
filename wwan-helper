@@ -27,7 +27,7 @@ case "$IFACE" in
 esac
 
 # Check device
-if ! lsusb | grep -q 'ID 0bdb:1911 Ericsson Business Mobile Networks BV'; then
+if ! lsusb | egrep -q 'ID 0bdb:19(11|3e) Ericsson Business Mobile Networks BV'; then
     echo 'wwan-helper: Unsupported WWAN device'
     exit 1
 fi
