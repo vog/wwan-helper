@@ -138,10 +138,11 @@ ln -s ../../wwan-helper/wwan-helper /etc/network/if-post-down.d/wwan-helper</pre
       <code>/etc/network/interfaces</code>.
       The following standard entry is all you need:
     </p>
-    <pre>iface wwan0 inet dhcp</pre>
+    <pre>iface wwx0123456789ab inet dhcp</pre>
     <p>
-      If you have a Linux kernel 3.2 or older,
-      use <code>usb0</code> instead of <code>wwan0</code>.
+      Replace <code>wwx0123456789ab</code> with your actual device name.
+      On old systems, this may be <code>wwan0</code>
+      and on even older systems, this may be <code>usb0</code>.
     </p>
     <h2>Disabling wwan-helper</h2>
     <p>
@@ -155,8 +156,8 @@ ln -s ../../wwan-helper/wwan-helper /etc/network/if-post-down.d/wwan-helper</pre
       <em>pre-up</em> and <em>post-down</em> phases
       directly via:
     </p>
-    <pre>IFACE=wwan0 PHASE=pre-up /etc/wwan-helper/wwan-helper
-IFACE=wwan0 PHASE=post-down /etc/wwan-helper/wwan-helper</pre>
+    <pre>IFACE=wwx0123456789ab PHASE=pre-up /etc/wwan-helper/wwan-helper
+IFACE=wwx0123456789ab PHASE=post-down /etc/wwan-helper/wwan-helper</pre>
     <p>
       For background information,
       please have a look at:

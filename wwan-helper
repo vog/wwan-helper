@@ -17,7 +17,7 @@ set -eu
 
 # Check interface
 case "$IFACE" in
-    wwan0|usb0)
+    usb0|wwan0|wwx*)
         # Okay, go ahead
         ;;
     *)
