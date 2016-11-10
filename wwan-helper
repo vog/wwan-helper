@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-# Copyright (C) 2013  Volker Grabsch <v@njh.eu>
+# Copyright (C) 2013     Volker Grabsch <v@njh.eu>
+# Copyright (C) 2015,16  Martin Krafft <madduck@madduck.net>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -26,68 +27,18 @@ case "$IFACE" in
         ;;
 esac
 
-# Check device
-if ! lsusb | egrep -q 'ID 0bdb:19(11|3e) Ericsson Business Mobile Networks BV'; then
-    echo 'wwan-helper: Unsupported WWAN device'
-    exit 1
-fi
-
-# Settings
-SERIAL_DEV=/dev/ttyACM1
 RETRY_TIMEOUT=3
 . /etc/wwan-helper/config
 
-# Check ENFORCE_UMTS
-if [ "$ENFORCE_UMTS" = "no" ]; then
-    AT_CFUN_INFO='wwan-helper: Not enforcing UMTS, allowing for GSM'
-    AT_CFUN_START=1
-elif [ "$ENFORCE_UMTS" = "yes" ]; then
-    AT_CFUN_INFO='wwan-helper: Enforcing UMTS, not allowing for GSM'
-    AT_CFUN_START=6
-else
-    echo 'wwan-helper: Invalid config value for ENFORCE_UMTS'
-    exit 1
+if [ -z "${USBID:-}" ]; then
+  USBID=$(lsusb | sed -rne 's,.*ID (0bdb:19(11|3e)) Ericsson Business Mobile Networks BV,\1,p')
 fi
 
-# Check phase
-case "$PHASE" in
-    pre-up)
-        while true; do
-            echo 'wwan-helper: Starting modem'
-            echo "$AT_CFUN_INFO"
-            modprobe cdc_acm
-            ip link set "$IFACE" down || echo "wwan-helper: Error on 'ip link set "$IFACE" down' (ignored)"
-            chat -v -T "$APN" -U "$PIN" \
-                TIMEOUT 2 \
-                '*EMRDY: 1' \
-                'AT+CPIN?' '+CPIN: READY-AT+CPIN="\U"-' \
-                '\c' 'OK' \
-                'AT+CFUN='"$AT_CFUN_START" 'OK' \
-                'AT+CGDCONT=1,"IP","\T"' 'OK' \
-                'AT*ENAP?' '*ENAP:1,""-AT*ENAP=1,1-' \
-                '\c' 'OK' \
-                < "$SERIAL_DEV" > "$SERIAL_DEV" || echo "wwan-helper: Error on 'chat' with $SERIAL_DEV (ignored)"
-            ip link set "$IFACE" up || echo "wwan-helper: Error on 'ip link set "$IFACE" up' (ignored)"
-            sleep "$RETRY_TIMEOUT"
-            if dmesg | grep "cdc_ncm[: ].* $IFACE: network" | tail -1 | grep ' connected$'; then
-                break
-            fi
-            echo 'wwan-helper: Failed - Retrying'
-            rmmod cdc_acm
-        done
-        ;;
-    post-down)
-        echo 'wwan-helper: Shutting down modem'
-        chat -v \
-            TIMEOUT 2 \
-            '*EMRDY: 1' \
-            'AT*ENAP?' '*ENAP:0,""-AT*ENAP=0-' \
-            '\c' 'OK' \
-            'AT+CFUN=4' 'OK' \
-            < "$SERIAL_DEV" > "$SERIAL_DEV"
-        ;;
-    *)
-        # Other phase, nothing to do
-        exit 0
-        ;;
-esac
+SCRIPT="/etc/wwan-helper/usbids/${USBID}"
+if [ -r "$SCRIPT" ] && [ -f "$SCRIPT" ] || [ -L "$SCRIPT" ]; then
+  . ${SCRIPT}
+  exit 0
+else
+  echo "wwan-helper: Unsupported WWAN device: ${USBID:-(no USB ID provided)}"
+  exit 1
+fi
