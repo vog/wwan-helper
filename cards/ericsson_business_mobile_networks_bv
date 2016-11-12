@@ -16,60 +16,60 @@ set -eu
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# Settings
-SERIAL_DEV=/dev/ttyACM1
+setup() {
+  SERIAL_DEV=/dev/ttyACM1
+  CHAT_TIMEOUT=2
 
-# Check ENFORCE_UMTS
-if [ "$ENFORCE_UMTS" = "no" ]; then
-    AT_CFUN_INFO='wwan-helper: Not enforcing UMTS, allowing for GSM'
-    AT_CFUN_START=1
-elif [ "$ENFORCE_UMTS" = "yes" ]; then
-    AT_CFUN_INFO='wwan-helper: Enforcing UMTS, not allowing for GSM'
-    AT_CFUN_START=6
-else
-    echo 'wwan-helper: Invalid config value for ENFORCE_UMTS'
-    exit 1
-fi
+  # Check ENFORCE_UMTS
+  if [ "$ENFORCE_UMTS" = "no" ]; then
+      verbose "Not enforcing UMTS, allowing for GSM"
+      AT_CFUN_START=1
+  elif [ "$ENFORCE_UMTS" = "yes" ]; then
+      verbose "Enforcing UMTS, not allowing for GSM"
+      AT_CFUN_START=6
+  else
+      fail "Invalid config value for ENFORCE_UMTS"
+  fi
+}
 
-# Check phase
-case "$PHASE" in
-    pre-up)
-        while true; do
-            echo 'wwan-helper: Starting modem'
-            echo "$AT_CFUN_INFO"
-            modprobe cdc_acm
-            ip link set "$IFACE" down || echo "wwan-helper: Error on 'ip link set "$IFACE" down' (ignored)"
-            chat -v -T "$APN" -U "$PIN" \
-                TIMEOUT 2 \
-                '*EMRDY: 1' \
-                'AT+CPIN?' '+CPIN: READY-AT+CPIN="\U"-' \
-                '\c' 'OK' \
-                'AT+CFUN='"$AT_CFUN_START" 'OK' \
-                'AT+CGDCONT=1,"IP","\T"' 'OK' \
-                'AT*ENAP?' '*ENAP:1,""-AT*ENAP=1,1-' \
-                '\c' 'OK' \
-                < "$SERIAL_DEV" > "$SERIAL_DEV" || echo "wwan-helper: Error on 'chat' with $SERIAL_DEV (ignored)"
-            ip link set "$IFACE" up || echo "wwan-helper: Error on 'ip link set "$IFACE" up' (ignored)"
-            sleep "$RETRY_TIMEOUT"
-            if dmesg | grep "cdc_ncm[: ].* $IFACE: network" | tail -1 | grep ' connected$'; then
-                break
-            fi
-            echo 'wwan-helper: Failed - Retrying'
-            rmmod cdc_acm
-        done
-        ;;
-    post-down)
-        echo 'wwan-helper: Shutting down modem'
-        chat -v \
-            TIMEOUT 2 \
-            '*EMRDY: 1' \
-            'AT*ENAP?' '*ENAP:0,""-AT*ENAP=0-' \
-            '\c' 'OK' \
-            'AT+CFUN=4' 'OK' \
-            < "$SERIAL_DEV" > "$SERIAL_DEV"
-        ;;
-    *)
-        # Other phase, nothing to do
-        exit 0
-        ;;
-esac
+init() {
+  ip link set "$IFACE" down
+  modemchat TIMEOUT 2 \
+    '*EMRDY: 1' \
+    'AT+CFUN='"$AT_CFUN_START" 'OK'
+}
+
+unlock() {
+  modemchat -U"$PIN" '' \
+    'AT+CPIN?' TIMEOUT 1 '+CPIN: READY-AT+CPIN="\U"-' \
+    '\c' 'OK'
+}
+
+register() { :; }
+
+connect() {
+  ip link set "$IFACE" up
+  sleep "$RETRY_TIMEOUT"
+  if dmesg | grep "cdc_ncm[: ].* $IFACE: network" | tail -1 | grep ' connected$'; then
+    return 0
+  fi
+  return 1
+}
+
+reset() {
+  rmmod cdc_acm
+  modprobe cdc_acm
+  init
+  unlock
+}
+
+disconnect() {
+  modemchat '*EMRDY: 1' \
+    'AT*ENAP?' '*ENAP:0,""-AT*ENAP=0-' \
+    '\c' 'OK'
+}
+
+shutdown() {
+  modemchat '*EMRDY: 1' \
+    'AT+CFUN=4' 'OK'
+}

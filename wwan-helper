@@ -28,6 +28,8 @@ case "$IFACE" in
 esac
 
 RETRY_TIMEOUT=3
+MAX_RETRIES=0
+VERBOSE=0
 . /etc/wwan-helper/config
 
 if [ -z "${USBID:-}" ]; then
@@ -42,11 +44,114 @@ fi
 # normalise the USB ID: four hex digits, and lower-case
 USBID=$(printf '%04x:%04x' 0x${USBID%:*} 0x${USBID#*:})
 
+LOG_PREFIX="wwan-helper"
+error() {
+  echo >&2 "${LOG_PREFIX}: $@"
+}
+fail() {
+  local retcode
+  case "$1" in
+    ([0-9]*) retcode=$1; shift;;
+    (*) retcode=1;;
+  esac
+  [ -n "${1:-}" ] && error "$@"
+  exit $retcode
+}
+_be_verbose() { [ $VERBOSE -ge 1 ]; }
+_be_really_verbose() { [ $VERBOSE -ge 2 ]; }
+verbose() {
+  ! _be_verbose || echo >&2 "${LOG_PREFIX}: $@"
+}
+verbose_begin() {
+  ! _be_verbose || echo -n >&2 "${LOG_PREFIX}: $@ "
+}
+verbose_cont() {
+  ! _be_verbose || echo -n >&2 "$@"
+}
+verbose_end() {
+  ! _be_verbose || echo >&2 "$@"
+}
+
+modemchat() {
+  local flags; flags=-S
+  ! _be_really_verbose || flags="${flags}vs"
+  chat $flags -t${CHAT_TIMEOUT:-5} "$@" < $SERIAL_DEV > $SERIAL_DEV
+}
+
+_unimplemented() {
+  fail "Function \`$1' not implemented for WWAN card $USBID."
+}
+setup() { :; } # optional
+init() { _unimplemented init; }
+unlock() { _unimplemented unlock; }
+register() { _unimplemented register; }
+connect() { _unimplemented connect; }
+disconnect() { _unimplemented disconnect; }
+reset() { _unimplemented reset; }
+shutdown() { _unimplemented shutdown; }
+teardown() { :; } # optional
+
 SCRIPT="/etc/wwan-helper/usbids/${USBID}"
 if [ -r "$SCRIPT" ] && [ -f "$SCRIPT" ] || [ -L "$SCRIPT" ]; then
   . ${SCRIPT}
-  exit 0
 else
-  echo "wwan-helper: Unsupported WWAN device: ${USBID:-(no USB ID provided)}"
-  exit 1
+  fail "Unsupported WWAN device: ${USBID:-(no USB ID provided)}"
 fi
+
+LOG_PREFIX="${LOG_PREFIX}[$USBID]"
+
+_runstep() {
+  local phase retcode failureisok
+  case "$1" in
+    (setup) phase="Set-up of handler script";;
+    (init) phase="Initialisation of WWAN card";;
+    (unlock) phase="Unlocking of SIM card";;
+    (register) phase="Registering with the network";;
+    (connect) phase="Connecting the carrier";;
+    (disconnect) phase="Disconnecting the carrier"; failureisok=1;;
+    (reset) phase="Resetting the WWAN card"; failureisok=1;;
+    (shutdown) phase="Shut-down of the WWAN card"; failureisok=1;;
+    (teardown) phase="Tear-down of the handler script";;
+  esac
+  verbose_begin "$phase..."
+  $1 || retcode=$?
+  case "${retcode:-0}/${failureisok:-0}" in
+    (0/*) verbose_end "success.";;
+    (*/1) verbose_end "failed (but that's ok).";;
+    (*)
+      verbose_end "failed.";
+      error "$phase failed (retcode=$retcode)"
+      return $retcode
+      ;;
+  esac
+}
+
+_runstep setup
+
+case "$PHASE" in
+  (pre-up)
+    _runstep init || fail $?
+    [ -z "$PIN" ] || _runstep unlock || fail $?
+
+    i=0
+    while :; do
+      _runstep register && _runstep connect && break
+      i=$((i+1))
+      if [ $i -gt $MAX_RETRIES ]; then
+        fail "Maximum number of connection attempts failed"
+      else
+        verbose "Retrying $(($MAX_RETRIES - $i)) more time(s)..."
+      fi
+      _runstep reset
+    done
+    ;;
+
+  (post-down)
+    _runstep disconnect || fail $?
+    _runstep shutdown || fail $?
+    ;;
+
+  (*) :;;
+esac
+
+_runstep teardown
