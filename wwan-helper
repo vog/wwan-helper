@@ -31,8 +31,16 @@ RETRY_TIMEOUT=3
 . /etc/wwan-helper/config
 
 if [ -z "${USBID:-}" ]; then
-  USBID=$(lsusb | sed -rne 's,.*ID (0bdb:19(11|3e)) Ericsson Business Mobile Networks BV,\1,p')
+  USBID=$(sed -rne 's|^PRODUCT=([[:xdigit:]]{1,4})/([[:xdigit:]]{1,4}).*|\1:\2|p' \
+    /sys/class/net/${IFACE}/device/uevent)
+
+  if [ -z "${USBID:-}" ]; then
+    fail "Could not auto-detect the USB ID."
+  fi
 fi
+
+# normalise the USB ID: four hex digits, and lower-case
+USBID=$(printf '%04x:%04x' 0x${USBID%:*} 0x${USBID#*:})
 
 SCRIPT="/etc/wwan-helper/usbids/${USBID}"
 if [ -r "$SCRIPT" ] && [ -f "$SCRIPT" ] || [ -L "$SCRIPT" ]; then
