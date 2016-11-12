@@ -87,6 +87,13 @@
       until the UMTS connection is really established.
     </p>
     <p>
+      Other cards are supported, and adding support for
+      new cards is trivial. Have a look at the scripts
+      in the <code>cards/</code> subdirectory, and the
+      symlinks under <code>usbids/</code>, which link the
+      USB IDs of supported cards to the handler scripts.
+    </p>
+    <p>
       The wwan-helper is meant to run as hook script
       for the <em>ifup&nbsp;/&nbsp;ifdown</em> mechanism,
       but should also work on other networking systems.
@@ -115,13 +122,14 @@
     </p>
     <pre>git clone https://github.com/vog/wwan-helper.git /etc/wwan-helper</pre>
     <p>
-      Configure your
+      Use the output of <code>lsusb</code> to identify the USB ID of your
+      WWAN card, and add it to <code>/etc/wwan-helper/config</code>.
+      There, you also need to configure your
       <a href="http://forums.pinstack.com/f24/tcp_apn_wap_gateway_port_carrier_settings-360/">APN</a>
-      and
-      PIN
-      in <code>/etc/wwan-helper/config</code>:
+      and PIN.
     </p>
-    <pre>APN=web.vodafone.de
+    <pre>USBID=0bdb:1911
+APN=web.vodafone.de
 PIN=1234
 ENFORCE_UMTS=no</pre>
     <p>
