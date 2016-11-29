@@ -94,7 +94,7 @@ reset() { :; }
 
 disconnect() {
   # \136 is the caret (^) character
-  modemchat '' TIMEOUT 30 'AT\136NDISDUP=1,0' '\136NDISSTAT: 0'
+  modemchat TIMEOUT 30 '' 'AT\136NDISDUP=1,0' '\136NDISSTAT: 0'
 }
 
 shutdown() {
