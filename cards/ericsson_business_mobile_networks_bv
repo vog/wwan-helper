@@ -60,7 +60,7 @@ reset() {
   rmmod cdc_acm
   modprobe cdc_acm
   init
-  unlock
+  [ -z "$PIN" ] || unlock
 }
 
 disconnect() {
