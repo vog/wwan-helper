@@ -65,7 +65,7 @@ register() {
       0) # still registering
          sleep 1 && verbose_cont .;;
       3) # no response, assume still registering
-         verbose_cont.;;
+         verbose_cont .;;
       4) # abort on first condition, i.e. registered to home network
          verbose_end "registered to home network"; return;;
       5) # abort on second condition, i.e. registered to foreign network
