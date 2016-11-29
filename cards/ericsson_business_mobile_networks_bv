@@ -37,8 +37,9 @@ init() {
 }
 
 unlock() {
-  modemchat -U"$PIN" '' \
-    'AT+CPIN?' TIMEOUT 1 '+CPIN: READY-AT+CPIN="\U"-' \
+  modemchat -U "$PIN" TIMEOUT 2 \
+    '*EMRDY: 1' \
+    'AT+CPIN?' '+CPIN: READY-AT+CPIN="\U"-' \
     '\c' 'OK'
 }
 
@@ -68,12 +69,14 @@ reset() {
 }
 
 disconnect() {
-  modemchat '*EMRDY: 1' \
+  modemchat TIMEOUT 2 \
+    '*EMRDY: 1' \
     'AT*ENAP?' '*ENAP:0,""-AT*ENAP=0-' \
     '\c' 'OK'
 }
 
 shutdown() {
-  modemchat '*EMRDY: 1' \
+  modemchat TIMEOUT 2 \
+    '*EMRDY: 1' \
     'AT+CFUN=4' 'OK'
 }
