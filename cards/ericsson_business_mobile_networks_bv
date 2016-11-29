@@ -21,15 +21,17 @@ setup() {
   CHAT_TIMEOUT=2
 
   # Check ENFORCE_UMTS
-  if [ "$ENFORCE_UMTS" = "no" ]; then
+  if [ "${IF_WWAN_ENFORCE_UMTS:-no}" = "no" ]; then
       verbose "Not enforcing UMTS, allowing for GSM"
       AT_CFUN_START=1
-  elif [ "$ENFORCE_UMTS" = "yes" ]; then
+  elif [ "$IF_WWAN_ENFORCE_UMTS" = "yes" ]; then
       verbose "Enforcing UMTS, not allowing for GSM"
       AT_CFUN_START=6
   else
       fail "Invalid config value for ENFORCE_UMTS"
   fi
+
+  RETRY_TIMEOUT=${IF_WWAN_RETRY_TIMEOUT:-3}
 }
 
 init() {

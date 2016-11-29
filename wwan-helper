@@ -16,34 +16,6 @@ set -eu
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# Check interface
-case "$IFACE" in
-    usb0|wwan0|wwx*|wwp*)
-        # Okay, go ahead
-        ;;
-    *)
-        # Other network device, nothing to do
-        exit 0
-        ;;
-esac
-
-RETRY_TIMEOUT=3
-MAX_RETRIES=0
-VERBOSE=0
-. /etc/wwan-helper/config
-
-if [ -z "${USBID:-}" ]; then
-  USBID=$(sed -rne 's|^PRODUCT=([[:xdigit:]]{1,4})/([[:xdigit:]]{1,4}).*|\1:\2|p' \
-    /sys/class/net/${IFACE}/device/uevent)
-
-  if [ -z "${USBID:-}" ]; then
-    fail "Could not auto-detect the USB ID."
-  fi
-fi
-
-# normalise the USB ID: four hex digits, and lower-case
-USBID=$(printf '%04x:%04x' 0x${USBID%:*} 0x${USBID#*:})
-
 LOG_PREFIX="wwan-helper"
 error() {
   echo >&2 "${LOG_PREFIX}: $@"
@@ -57,6 +29,46 @@ fail() {
   [ -n "${1:-}" ] && error "$@"
   exit $retcode
 }
+
+if is_true "${IF_WWAN_HELPER_DISABLE:-}"; then
+  fail 1 "'wwan-helper-disable' set to true value, failing…"
+fi
+
+# unless $VERBOSE elready exists in the environment, initialise it from
+# IF_WWAN_VERBOSE, which defaults to 0
+: ${VERBOSE:=${IF_WWAN_VERBOSE:-0}}
+[ ${VERBOSE:-0} -ge 10 ] && set -v
+[ ${VERBOSE:-0} -ge  5 ] && set -x
+
+# An APN is required for this hook to work. However, …
+if [ -z "${IF_WWAN_APN:-}" ]; then
+  case "$IFACE" in
+    usb*|wwan*|ww[xp]*)
+      # … it's only an error if we're handling WWAN interfaces. Otherwise …
+      fail "No 'wwan-apn' defined in /etc/network/interfaces stanza";;
+  esac
+  # … just exit as if nothing has happened.
+  exit 0
+fi
+
+# Set defaults
+APN="$IF_WWAN_APN"
+PIN="${IF_WWAN_PIN:-}"
+MAX_RETRIES="${IF_WWAN_RETRIES:-0}"
+USBID="${IF_WWAN_USBID:-}"
+
+if [ -z "${USBID:-}" ]; then
+  USBID=$(sed -rne 's|^PRODUCT=([[:xdigit:]]{1,4})/([[:xdigit:]]{1,4}).*|\1:\2|p' \
+    /sys/class/net/${IFACE}/device/uevent)
+
+  if [ -z "${USBID:-}" ]; then
+    fail "Could not auto-detect the USB ID, please use 'wwan-usbid'."
+  fi
+fi
+
+# normalise the USB ID: four hex digits, and lower-case
+USBID=$(printf '%04x:%04x' 0x${USBID%:*} 0x${USBID#*:})
+
 _be_verbose() { [ $VERBOSE -ge 1 ]; }
 _be_really_verbose() { [ $VERBOSE -ge 2 ]; }
 verbose() {
@@ -78,6 +90,16 @@ modemchat() {
   chat $flags -t${CHAT_TIMEOUT:-5} "$@" < $SERIAL_DEV > $SERIAL_DEV
 }
 
+is_true() {
+  case "${1:-}" in
+    ([yYjJtT]*|1|[Oo]n) return 0;;
+    (*) return 1;;
+  esac
+}
+is_false() {
+  ! is_true "$@"
+}
+
 _unimplemented() {
   fail "Function \`$1' not implemented for WWAN card $USBID."
 }
@@ -91,7 +113,8 @@ reset() { _unimplemented reset; }
 shutdown() { _unimplemented shutdown; }
 teardown() { :; } # optional
 
-SCRIPT="/etc/wwan-helper/usbids/${USBID}"
+SELF="$(readlink -f "$0")"
+SCRIPT="${SELF%/*}/usbids/${USBID}"
 if [ -r "$SCRIPT" ] && [ -f "$SCRIPT" ] || [ -L "$SCRIPT" ]; then
   . ${SCRIPT}
 else
