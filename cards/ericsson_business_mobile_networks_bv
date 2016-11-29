@@ -34,9 +34,6 @@ setup() {
 
 init() {
   ip link set "$IFACE" down
-  modemchat TIMEOUT 2 \
-    '*EMRDY: 1' \
-    'AT+CFUN='"$AT_CFUN_START" 'OK'
 }
 
 unlock() {
@@ -45,7 +42,14 @@ unlock() {
     '\c' 'OK'
 }
 
-register() { :; }
+register() {
+  modemchat -T "$APN" TIMEOUT 2 \
+    '*EMRDY: 1' \
+    'AT+CFUN='"$AT_CFUN_START" 'OK' \
+    'AT+CGDCONT=1,"IP","\T"' 'OK' \
+    'AT*ENAP?' '*ENAP:1,""-AT*ENAP=1,1-' \
+    '\c' 'OK'
+}
 
 connect() {
   ip link set "$IFACE" up
