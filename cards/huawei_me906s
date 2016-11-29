@@ -59,22 +59,21 @@ register() {
   local i; i=0
   while [ $i -lt $REG_MAXWAIT ]; do
     i=$((i+1))
-    modemchat SAY "'abort on' failures are expected and indicate success:\n" \
-      ABORT '+CREG: 0,1' ABORT '+CREG: 0,5' TIMEOUT 1 \
+    modemchat ABORT '+CREG: 0,1' ABORT '+CREG: 0,5' TIMEOUT 1 \
       '' 'AT+CREG?' '+CREG: 0,2'
     case "$?" in
       0) # still registering
          sleep 1 && verbose_cont .;;
       3) # no response, assume still registering
-         verbose_cont.;;
+         verbose_cont .;;
       4) # abort on first condition, i.e. registered to home network
-         verbose_end "registered to home network"; return;;
+         verbose_cont "registered to home network, "; return;;
       5) # abort on second condition, i.e. registered to foreign network
          if [ $roaming = enabled ]; then
-           verbose_end "failed (roaming disabled)."
+           verbose_cont "failed (roaming disabled), "
            return 1
          else
-           verbose_end "registered to roaming network."
+           verbose_cont "registered to roaming network, "
            return 0
          fi
          ;;
