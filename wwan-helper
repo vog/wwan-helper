@@ -29,6 +29,15 @@ fail() {
   [ -n "${1:-}" ] && error "$@"
   exit $retcode
 }
+is_true() {
+  case "${1:-}" in
+    ([yYjJtT]*|1|[Oo]n) return 0;;
+    (*) return 1;;
+  esac
+}
+is_false() {
+  ! is_true "$@"
+}
 
 if is_true "${IF_WWAN_HELPER_DISABLE:-}"; then
   fail 1 "'wwan-helper-disable' set to true value, failing…"
@@ -88,16 +97,6 @@ modemchat() {
   local flags; flags=-S
   ! _be_really_verbose || flags="${flags}vs"
   chat $flags -t${CHAT_TIMEOUT:-5} "$@" < $SERIAL_DEV > $SERIAL_DEV
-}
-
-is_true() {
-  case "${1:-}" in
-    ([yYjJtT]*|1|[Oo]n) return 0;;
-    (*) return 1;;
-  esac
-}
-is_false() {
-  ! is_true "$@"
 }
 
 _unimplemented() {
