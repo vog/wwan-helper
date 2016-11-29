@@ -57,10 +57,7 @@ register() {
 connect() {
   ip link set "$IFACE" up
   sleep "$RETRY_TIMEOUT"
-  if dmesg | grep "cdc_ncm[: ].* $IFACE: network" | tail -1 | grep ' connected$'; then
-    return 0
-  fi
-  return 1
+  dmesg | grep "cdc_ncm[: ].* $IFACE: network" | tail -1 | grep ' connected$'
 }
 
 reset() {
