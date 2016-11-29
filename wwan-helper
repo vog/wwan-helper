@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-# Copyright (C) 2013  Volker Grabsch <v@njh.eu>
+# Copyright (C) 2013     Volker Grabsch <v@njh.eu>
+# Copyright (C) 2015,16  Martin Krafft <madduck@madduck.net>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -26,68 +27,131 @@ case "$IFACE" in
         ;;
 esac
 
-# Check device
-if ! lsusb | egrep -q 'ID 0bdb:19(11|3e) Ericsson Business Mobile Networks BV'; then
-    echo 'wwan-helper: Unsupported WWAN device'
-    exit 1
-fi
-
-# Settings
-SERIAL_DEV=/dev/ttyACM1
 RETRY_TIMEOUT=3
+MAX_RETRIES=0
+VERBOSE=0
 . /etc/wwan-helper/config
 
-# Check ENFORCE_UMTS
-if [ "$ENFORCE_UMTS" = "no" ]; then
-    AT_CFUN_INFO='wwan-helper: Not enforcing UMTS, allowing for GSM'
-    AT_CFUN_START=1
-elif [ "$ENFORCE_UMTS" = "yes" ]; then
-    AT_CFUN_INFO='wwan-helper: Enforcing UMTS, not allowing for GSM'
-    AT_CFUN_START=6
-else
-    echo 'wwan-helper: Invalid config value for ENFORCE_UMTS'
-    exit 1
+if [ -z "${USBID:-}" ]; then
+  USBID=$(sed -rne 's|^PRODUCT=([[:xdigit:]]{1,4})/([[:xdigit:]]{1,4}).*|\1:\2|p' \
+    /sys/class/net/${IFACE}/device/uevent)
+
+  if [ -z "${USBID:-}" ]; then
+    fail "Could not auto-detect the USB ID."
+  fi
 fi
 
-# Check phase
+# normalise the USB ID: four hex digits, and lower-case
+USBID=$(printf '%04x:%04x' 0x${USBID%:*} 0x${USBID#*:})
+
+LOG_PREFIX="wwan-helper"
+error() {
+  echo >&2 "${LOG_PREFIX}: $@"
+}
+fail() {
+  local retcode
+  case "$1" in
+    ([0-9]*) retcode=$1; shift;;
+    (*) retcode=1;;
+  esac
+  [ -n "${1:-}" ] && error "$@"
+  exit $retcode
+}
+_be_verbose() { [ $VERBOSE -ge 1 ]; }
+_be_really_verbose() { [ $VERBOSE -ge 2 ]; }
+verbose() {
+  ! _be_verbose || echo >&2 "${LOG_PREFIX}: $@"
+}
+verbose_begin() {
+  ! _be_verbose || echo -n >&2 "${LOG_PREFIX}: $@ "
+}
+verbose_cont() {
+  ! _be_verbose || echo -n >&2 "$@"
+}
+verbose_end() {
+  ! _be_verbose || echo >&2 "$@"
+}
+
+modemchat() {
+  local flags; flags=-S
+  ! _be_really_verbose || flags="${flags}vs"
+  chat $flags -t${CHAT_TIMEOUT:-5} "$@" < $SERIAL_DEV > $SERIAL_DEV
+}
+
+_unimplemented() {
+  fail "Function \`$1' not implemented for WWAN card $USBID."
+}
+setup() { :; } # optional
+init() { _unimplemented init; }
+unlock() { _unimplemented unlock; }
+register() { _unimplemented register; }
+connect() { _unimplemented connect; }
+disconnect() { _unimplemented disconnect; }
+reset() { _unimplemented reset; }
+shutdown() { _unimplemented shutdown; }
+teardown() { :; } # optional
+
+SCRIPT="/etc/wwan-helper/usbids/${USBID}"
+if [ -r "$SCRIPT" ] && [ -f "$SCRIPT" ] || [ -L "$SCRIPT" ]; then
+  . ${SCRIPT}
+else
+  fail "Unsupported WWAN device: ${USBID:-(no USB ID provided)}"
+fi
+
+LOG_PREFIX="${LOG_PREFIX}[$USBID]"
+
+_runstep() {
+  local phase retcode failureisok
+  case "$1" in
+    (setup) phase="Set-up of handler script";;
+    (init) phase="Initialisation of WWAN card";;
+    (unlock) phase="Unlocking of SIM card";;
+    (register) phase="Registering with the network";;
+    (connect) phase="Connecting the carrier";;
+    (disconnect) phase="Disconnecting the carrier"; failureisok=1;;
+    (reset) phase="Resetting the WWAN card"; failureisok=1;;
+    (shutdown) phase="Shut-down of the WWAN card"; failureisok=1;;
+    (teardown) phase="Tear-down of the handler script";;
+  esac
+  verbose_begin "$phase..."
+  $1 || retcode=$?
+  case "${retcode:-0}/${failureisok:-0}" in
+    (0/*) verbose_end "success.";;
+    (*/1) verbose_end "failed (but that's ok).";;
+    (*)
+      verbose_end "failed.";
+      error "$phase failed (retcode=$retcode)"
+      return $retcode
+      ;;
+  esac
+}
+
+_runstep setup
+
 case "$PHASE" in
-    pre-up)
-        while true; do
-            echo 'wwan-helper: Starting modem'
-            echo "$AT_CFUN_INFO"
-            modprobe cdc_acm
-            ip link set "$IFACE" down || echo "wwan-helper: Error on 'ip link set "$IFACE" down' (ignored)"
-            chat -v -T "$APN" -U "$PIN" \
-                TIMEOUT 2 \
-                '*EMRDY: 1' \
-                'AT+CPIN?' '+CPIN: READY-AT+CPIN="\U"-' \
-                '\c' 'OK' \
-                'AT+CFUN='"$AT_CFUN_START" 'OK' \
-                'AT+CGDCONT=1,"IP","\T"' 'OK' \
-                'AT*ENAP?' '*ENAP:1,""-AT*ENAP=1,1-' \
-                '\c' 'OK' \
-                < "$SERIAL_DEV" > "$SERIAL_DEV" || echo "wwan-helper: Error on 'chat' with $SERIAL_DEV (ignored)"
-            ip link set "$IFACE" up || echo "wwan-helper: Error on 'ip link set "$IFACE" up' (ignored)"
-            sleep "$RETRY_TIMEOUT"
-            if dmesg | grep "cdc_ncm[: ].* $IFACE: network" | tail -1 | grep ' connected$'; then
-                break
-            fi
-            echo 'wwan-helper: Failed - Retrying'
-            rmmod cdc_acm
-        done
-        ;;
-    post-down)
-        echo 'wwan-helper: Shutting down modem'
-        chat -v \
-            TIMEOUT 2 \
-            '*EMRDY: 1' \
-            'AT*ENAP?' '*ENAP:0,""-AT*ENAP=0-' \
-            '\c' 'OK' \
-            'AT+CFUN=4' 'OK' \
-            < "$SERIAL_DEV" > "$SERIAL_DEV"
-        ;;
-    *)
-        # Other phase, nothing to do
-        exit 0
-        ;;
+  (pre-up)
+    _runstep init || fail $?
+    [ -z "$PIN" ] || _runstep unlock || fail $?
+
+    i=0
+    while :; do
+      _runstep register && _runstep connect && break
+      i=$((i+1))
+      if [ $i -gt $MAX_RETRIES ]; then
+        fail "Maximum number of connection attempts failed"
+      else
+        verbose "Retrying $(($MAX_RETRIES - $i)) more time(s)..."
+      fi
+      _runstep reset
+    done
+    ;;
+
+  (post-down)
+    _runstep disconnect || fail $?
+    _runstep shutdown || fail $?
+    ;;
+
+  (*) :;;
 esac
+
+_runstep teardown

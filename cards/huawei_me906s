@@ -1,0 +1,80 @@
+#!/bin/sh
+set -eu
+
+# Copyright (C) 2016  Martin Krafft <madduck@madduck.net>
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+setup() {
+  SERIAL_DEV=/dev/ttyUSB0
+  CHAT_TIMEOUT=3
+}
+
+INIT_MINWAIT=5 # we need to wait 5 seconds for the device to even disappear on
+INIT_MAXWAIT=15
+
+init() {
+  modemchat '' 'AT+CFUN=1,1' 'OK'
+  verbose_end "started."
+  verbose_begin "Waiting for up to $INIT_MAXWAIT seconds for modem to finish initialising"
+  local i; i=0
+  while [ $i -lt $INIT_MAXWAIT ]; do
+    i=$((i+1))
+    if [ $i -gt $INIT_MINWAIT ] && [ -c "$SERIAL_DEV" ]; then
+      modemchat TIMEOUT 1 '' ATZ OK && return
+    else
+      sleep 1
+    fi
+    verbose_cont .
+  done
+  verbose_end "failed."
+  fail "Modem failed to initialise in $INIT_MAXWAIT seconds"
+}
+
+unlock() {
+  modemchat -U"$PIN" '' \
+    'AT+CPIN?' TIMEOUT 1 '+CPIN: READY-AT+CPIN="\U"-' \
+    '\c' 'OK'
+}
+
+REG_MAXWAIT=120
+
+register() {
+  verbose_end "started."
+  verbose_begin "Waiting for up to $REG_MAXWAIT seconds for network registration"
+  local i; i=0
+  while [ $i -lt $REG_MAXWAIT ]; do
+    i=$((i+1))
+    modemchat TIMEOUT 1 '' 'AT+CREG?' '+CREG: 0,1' && return
+    verbose_cont .
+  done
+  verbose_end "failed."
+  fail "Network registration failed in $REG_MAXWAIT seconds"
+}
+
+connect() {
+  # \136 is the caret (^) character
+  modemchat -T"$APN" ABORT 'NO CARRIER' ABORT ERROR TIMEOUT 30 '' \
+    'AT\136NDISDUP=1,1,"\T"' '\136NDISSTAT: 1,,,"IPV4"'
+}
+
+reset() { :; }
+
+disconnect() {
+  # \136 is the caret (^) character
+  modemchat '' TIMEOUT 30 'AT\136NDISDUP=1,0' '\136NDISSTAT: 0'
+}
+
+shutdown() {
+  modemchat '' 'AT+CFUN=4' OK
+}
