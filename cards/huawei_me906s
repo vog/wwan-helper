@@ -59,8 +59,7 @@ register() {
   local i; i=0
   while [ $i -lt $REG_MAXWAIT ]; do
     i=$((i+1))
-    modemchat SAY "'abort on' failures are expected and indicate success:\n" \
-      ABORT '+CREG: 0,1' ABORT '+CREG: 0,5' TIMEOUT 1 \
+    modemchat ABORT '+CREG: 0,1' ABORT '+CREG: 0,5' TIMEOUT 1 \
       '' 'AT+CREG?' '+CREG: 0,2'
     case "$?" in
       0) # still registering
