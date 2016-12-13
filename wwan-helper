@@ -66,13 +66,13 @@ PIN="${IF_WWAN_PIN:-}"
 MAX_RETRIES="${IF_WWAN_RETRIES:-0}"
 USBID="${IF_WWAN_USBID:-}"
 
-if [ -z "${USBID:-}" ]; then
+if [ -z "${USBID:-}" ] && [ -f /sys/class/net/${IFACE}/device/uevent ]; then
   USBID=$(sed -rne 's|^PRODUCT=([[:xdigit:]]{1,4})/([[:xdigit:]]{1,4}).*|\1:\2|p' \
     /sys/class/net/${IFACE}/device/uevent)
+fi
 
-  if [ -z "${USBID:-}" ]; then
-    fail "Could not auto-detect the USB ID, please use 'wwan-usbid'."
-  fi
+if [ -z "${USBID:-}" ]; then
+  fail "Could not auto-detect the USB ID, please use 'wwan-usbid'."
 fi
 
 # normalise the USB ID: four hex digits, and lower-case
