@@ -69,7 +69,7 @@ register() {
       4) # abort on first condition, i.e. registered to home network
          verbose_cont "registered to home network, "; return;;
       5) # abort on second condition, i.e. registered to foreign network
-         if [ $roaming = enabled ]; then
+         if [ $roaming != enabled ]; then
            verbose_cont "failed (roaming disabled), "
            return 1
          else
